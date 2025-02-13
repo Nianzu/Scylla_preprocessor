@@ -1,3 +1,4 @@
+use sacrifice::prelude::*;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::{env, string};
@@ -7,7 +8,7 @@ static MIN_ELO: u16 = 2000;
 struct game {
     white_elo: Option<u16>,
     black_elo: Option<u16>,
-    
+    pgn: String,
 }
 
 impl game {
@@ -15,6 +16,7 @@ impl game {
         game {
             white_elo: None,
             black_elo: None,
+            pgn: "".to_owned(),
         }
     }
 
@@ -66,15 +68,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 _ => {}
             }
+        } else {
+            current_game.pgn = current_game.pgn + " " + &line.to_owned();
         }
         if current_line_type == "moves" && last_line_type == "tags" {
             if current_game.is_desired() {
                 games.push(current_game);
-                current_game = game::new();
+                
+                // Debug code
+                if games.len() > 1 {
+                    break;
+                }
             }
+
+            current_game = game::new();
         }
         last_line_type = current_line_type;
     }
     println!("Games: {}", games.len());
+    println!("{}", games[0].pgn);
     Ok(())
 }
