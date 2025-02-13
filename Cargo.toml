@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rschess = "2.0.3"
+# rschess = "2.0.3"
+rschess = { path = "../rschess_fix_index" }

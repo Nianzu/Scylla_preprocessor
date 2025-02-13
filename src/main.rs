@@ -1,4 +1,4 @@
-use rschess::Board;
+use rschess::{Board, Color, Piece, PieceType};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::{env, string};
@@ -40,17 +40,17 @@ impl game {
 
     fn remove_brackets(input: String) -> String {
         let mut bracket_depth = 0;
-        let mut output:String = "".to_owned();
+        let mut output: String = "".to_owned();
         for char in input.chars() {
             if char == '{' {
                 bracket_depth += 1;
             }
-            if bracket_depth == 0{
+            if bracket_depth == 0 {
                 output.push(char);
             }
             if char == '}' {
                 bracket_depth -= 1;
-            } 
+            }
         }
         output
     }
@@ -70,7 +70,6 @@ impl game {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
-    let board = Board::default();
 
     if args.len() < 2 {
         println!("Please include a path to the pgn you want to use");
@@ -118,6 +117,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         last_line_type = current_line_type;
     }
+
+    let mut board = Board::default();
+    let current_game = &games[0];
+    for arithmetic_move in &current_game.moves {
+        let move_being_made = board.san_to_move(&arithmetic_move).expect("ERRORRRRRRRRR");
+        println!("Side to move: {}", board.side_to_move());
+        println!("Move being made: {:?}", move_being_made.from_square());
+        // println!("{}\n\n", board);
+        for j in ('1'..='8').rev() {
+            for i in 'a'..='h' {
+                if !board.occupant_of_square(i, j).unwrap().is_none()
+                    && board
+                        .occupant_of_square(i, j)
+                        .unwrap()
+                        .unwrap()
+                        .piece_type()
+                        == PieceType::P
+                {
+                    if board
+                    .occupant_of_square(i, j)
+                    .unwrap()
+                    .unwrap().color() == Color::White {
+                        print!(" 1 ");
+
+                    }
+                    else{print!("-1 ")}
+                } else {
+                    print!(" 0 ");
+                }
+                if i == 'h' {
+                    print!("\n");
+                }
+            }
+        }
+        board.make_move_san(&arithmetic_move).expect("ERRORRRR");
+    }
+
     println!("Games: {}", games.len());
     println!("{}", games[0].pgn);
     println!("{:?}", games[0].moves);

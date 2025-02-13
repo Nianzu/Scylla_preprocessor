@@ -30,8 +30,6 @@ dependencies = [
 [[package]]
 name = "rschess"
 version = "2.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "124bb50b7d440055e4212a50e09669730119f839c8356e688d734c496dbac80e"
 dependencies = [
  "thiserror",
 ]
