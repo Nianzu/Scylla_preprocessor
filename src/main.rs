@@ -1,10 +1,11 @@
 use rschess::{Board, Color, PieceType};
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 use std::env;
+use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader, Write};
 
 static MIN_ELO: u16 = 2_000;
-static MAX_GAMES: usize = 20_000;
+static MAX_GAMES: usize = 1;
 
 struct BitBoards {
     pawns: Vec<i8>,
@@ -29,6 +30,27 @@ impl BitBoards {
         }
     }
 
+    fn export_board(board: Vec<i8>, f: &mut File) {
+        let mut output = "".to_owned();
+        for i in 0..64 {
+            output += &format!("{:2}", board[i]);
+            output += ",";
+        }
+        f.write_all(output.as_bytes())
+            .expect("Issue writing to file");
+    }
+    fn export_boards(&self, f: &mut File) {
+        BitBoards::export_board(self.pawns.clone(), f);
+        BitBoards::export_board(self.bishops.clone(), f);
+        BitBoards::export_board(self.knights.clone(), f);
+        BitBoards::export_board(self.rooks.clone(), f);
+        BitBoards::export_board(self.queens.clone(), f);
+        BitBoards::export_board(self.kings.clone(), f);
+        f.write_all("\n".as_bytes()).expect("Issue writing to file");
+        BitBoards::export_board(self.piece_selected.clone(), f);
+        f.write_all("\n".as_bytes()).expect("Issue writing to file");
+    }
+
     fn print_board(board: Vec<i8>) -> String {
         let mut output = "".to_owned();
         for i in 0..64 {
@@ -51,10 +73,10 @@ impl BitBoards {
         output += &BitBoards::print_board(self.knights.clone());
         output += "Rooks\n";
         output += &BitBoards::print_board(self.rooks.clone());
-        output += "Kings\n";
-        output += &BitBoards::print_board(self.kings.clone());
         output += "Queens\n";
         output += &BitBoards::print_board(self.queens.clone());
+        output += "Kings\n";
+        output += &BitBoards::print_board(self.kings.clone());
         output += "Piece Selected\n";
         output += &BitBoards::print_board(self.piece_selected.clone());
         output
@@ -112,7 +134,9 @@ impl Game {
     }
 
     fn parse_moves(mut self) -> Self {
-        let beginning = Game::remove_brackets(self.pgn.clone()).replace("?", "").replace("!", "");
+        let beginning = Game::remove_brackets(self.pgn.clone())
+            .replace("?", "")
+            .replace("!", "");
         let mut intermediate: Vec<&str> = beginning.split(" ").collect();
         intermediate.retain(|value| !value.contains(".") && !value.is_empty());
         let end: Vec<String> = intermediate
@@ -123,7 +147,7 @@ impl Game {
         self
     }
 
-    fn process_moves(&self) {
+    fn process_moves(&self, f: &mut File) {
         let mut board = Board::default();
         for arithmetic_move in self.moves.clone() {
             let side_to_move = board.side_to_move();
@@ -167,6 +191,7 @@ impl Game {
                     }
                 }
                 // println!("{}", pieces.print_boards());
+                pieces.export_boards(f);
             }
 
             board.make_move_san(&arithmetic_move).expect("ERRORRRR");
@@ -181,6 +206,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Please include a path to the pgn you want to use");
         return Ok(());
     }
+
+    let mut f = OpenOptions::new()
+        .read(true)
+        .write(true) // <--------- this
+        .create(true).truncate(true)
+        .open("tmp")
+        .expect("Unable to create file");
+
     let mut last_line_type = "moves";
     let file = File::open(&args[1]).expect("Error opening file");
 
@@ -212,10 +245,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if current_line_type == "moves" && last_line_type == "tags" {
             if current_game.is_desired() {
                 current_game = current_game.parse_moves();
-                current_game.process_moves();
+                current_game.process_moves(&mut f);
                 num_games += 1;
-                if num_games % 100 == 0{
-                    println!("{}",num_games);
+                if num_games % 100 == 0 {
+                    println!("{}", num_games);
                 }
 
                 // Debug code
