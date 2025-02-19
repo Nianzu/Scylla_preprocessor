@@ -1,8 +1,7 @@
-use core::{fmt, num};
-use rschess::{Board, Color, Piece, PieceType};
+use rschess::{Board, Color, PieceType};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::{env, string};
+use std::env;
 
 static MIN_ELO: u16 = 2_000;
 static MAX_GAMES: usize = 20_000;
