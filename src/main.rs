@@ -62,16 +62,16 @@ impl BitBoards {
     }
 }
 
-struct game {
+struct Game {
     white_elo: Option<u16>,
     black_elo: Option<u16>,
     pgn: String,
     moves: Vec<String>,
 }
 
-impl game {
-    fn new() -> game {
-        game {
+impl Game {
+    fn new() -> Game {
+        Game {
             white_elo: None,
             black_elo: None,
             pgn: "".to_owned(),
@@ -113,7 +113,7 @@ impl game {
     }
 
     fn parse_moves(mut self) -> Self {
-        let beginning = game::remove_brackets(self.pgn.clone()).replace("?", "").replace("!", "");
+        let beginning = Game::remove_brackets(self.pgn.clone()).replace("?", "").replace("!", "");
         let mut intermediate: Vec<&str> = beginning.split(" ").collect();
         intermediate.retain(|value| !value.contains(".") && !value.is_empty());
         let end: Vec<String> = intermediate
@@ -186,7 +186,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(&args[1]).expect("Error opening file");
 
     let reader = BufReader::new(file);
-    let mut current_game = game::new();
+    let mut current_game = Game::new();
     let mut num_games = 0;
 
     for line_obj in reader.lines() {
@@ -197,7 +197,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         if line.chars().next().expect("Issue getting first char") == '[' {
             current_line_type = "tags";
-            let (name, content) = game::get_tag(&line);
+            let (name, content) = Game::get_tag(&line);
             match name.as_str() {
                 "WhiteElo" => {
                     current_game.white_elo = content.parse::<u16>().ok();
@@ -225,7 +225,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            current_game = game::new();
+            current_game = Game::new();
         }
         last_line_type = current_line_type;
     }
