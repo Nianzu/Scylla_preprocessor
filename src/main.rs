@@ -40,7 +40,7 @@ impl BitBoards {
         }
         output
     }
-    fn print_boards (&self) -> String {
+    fn print_boards(&self) -> String {
         let mut output = "".to_owned();
         output += "Pawns\n";
         output += &BitBoards::print_board(self.pawns.clone());
@@ -175,44 +175,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut board = Board::default();
     for arithmetic_move in games[0].moves.clone() {
-        let mut pieces = BitBoards::new();
+        let side_to_move = board.side_to_move();
         let move_being_made = board.san_to_move(&arithmetic_move).expect("ERRORRRRRRRRR");
-        println!("Side to move: {}", board.side_to_move());
+        println!("Side to move: {}", side_to_move);
         println!("Move being made: {:?}", move_being_made.from_square());
-        {
-            let i = move_being_made.from_square().0 as usize -97;
-            let j = move_being_made.from_square().1 as usize -49;
-            pieces.piece_selected[i + ( (7 -j) * 8)] = 1;
-        }
-        let mut index = 0;
-        for j in ('1'..='8').rev() {
-            for i in 'a'..='h' {
-                if !board.occupant_of_square(i, j).unwrap().is_none() {
-                    let piece_value = if board.occupant_of_square(i, j).unwrap().unwrap().color()
-                        == Color::White
-                    {
-                        1
-                    } else {
-                        -1
-                    };
-                    let piece_type = board
-                        .occupant_of_square(i, j)
-                        .unwrap()
-                        .unwrap()
-                        .piece_type();
-                    match piece_type {
-                        PieceType::P => pieces.pawns[index] = piece_value,
-                        PieceType::B => pieces.bishops[index] = piece_value,
-                        PieceType::N => pieces.knights[index] = piece_value,
-                        PieceType::R => pieces.rooks[index] = piece_value,
-                        PieceType::K => pieces.kings[index] = piece_value,
-                        PieceType::Q => pieces.queens[index] = piece_value,
-                    }
-                }
-                index += 1;
+        if (side_to_move == Color::White) {
+            let mut pieces = BitBoards::new();
+            {
+                let i = move_being_made.from_square().0 as usize - 97;
+                let j = move_being_made.from_square().1 as usize - 49;
+                pieces.piece_selected[i + ((7 - j) * 8)] = 1;
             }
+            let mut index = 0;
+            for j in ('1'..='8').rev() {
+                for i in 'a'..='h' {
+                    if !board.occupant_of_square(i, j).unwrap().is_none() {
+                        let piece_value =
+                            if board.occupant_of_square(i, j).unwrap().unwrap().color()
+                                == Color::White
+                            {
+                                1
+                            } else {
+                                -1
+                            };
+                        let piece_type = board
+                            .occupant_of_square(i, j)
+                            .unwrap()
+                            .unwrap()
+                            .piece_type();
+                        match piece_type {
+                            PieceType::P => pieces.pawns[index] = piece_value,
+                            PieceType::B => pieces.bishops[index] = piece_value,
+                            PieceType::N => pieces.knights[index] = piece_value,
+                            PieceType::R => pieces.rooks[index] = piece_value,
+                            PieceType::K => pieces.kings[index] = piece_value,
+                            PieceType::Q => pieces.queens[index] = piece_value,
+                        }
+                    }
+                    index += 1;
+                }
+            }
+            println!("{}", pieces.print_boards());
         }
-        println!("{}", pieces.print_boards());
+
         board.make_move_san(&arithmetic_move).expect("ERRORRRR");
     }
 
