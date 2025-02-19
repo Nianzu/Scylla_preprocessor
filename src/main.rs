@@ -5,7 +5,7 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 
 static MIN_ELO: u16 = 2_000;
-static MAX_GAMES: usize = 1;
+static MAX_GAMES: usize = 20_000;
 
 struct BitBoards {
     pawns: Vec<i8>,
@@ -211,7 +211,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .read(true)
         .write(true) // <--------- this
         .create(true).truncate(true)
-        .open("tmp")
+        .open("../Scylla/datasets/chess_2000/data.csv")
         .expect("Unable to create file");
 
     let mut last_line_type = "moves";
