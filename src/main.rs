@@ -4,7 +4,8 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::{env, string};
 
-static MIN_ELO: u16 = 2000;
+static MIN_ELO: u16 = 2_000;
+static MAX_GAMES: usize = 20_000;
 
 struct BitBoards {
     pawns: Vec<i8>,
@@ -40,6 +41,7 @@ impl BitBoards {
         }
         output
     }
+
     fn print_boards(&self) -> String {
         let mut output = "".to_owned();
         output += "Pawns\n";
@@ -121,6 +123,56 @@ impl game {
         self.moves = end.split_last().unwrap().1.to_vec();
         self
     }
+
+    fn process_moves(&self) {
+        let mut board = Board::default();
+        for arithmetic_move in self.moves.clone() {
+            let side_to_move = board.side_to_move();
+            let move_being_made = board.san_to_move(&arithmetic_move).expect("ERRORRRRRRRRR");
+            println!("Side to move: {}", side_to_move);
+            println!("Move being made: {:?}", move_being_made.from_square());
+            if side_to_move == Color::White {
+                let mut pieces = BitBoards::new();
+                {
+                    let i = move_being_made.from_square().0 as usize - 97;
+                    let j = move_being_made.from_square().1 as usize - 49;
+                    pieces.piece_selected[i + ((7 - j) * 8)] = 1;
+                }
+                let mut index = 0;
+                for j in ('1'..='8').rev() {
+                    for i in 'a'..='h' {
+                        if !board.occupant_of_square(i, j).unwrap().is_none() {
+                            let piece_value =
+                                if board.occupant_of_square(i, j).unwrap().unwrap().color()
+                                    == Color::White
+                                {
+                                    1
+                                } else {
+                                    -1
+                                };
+                            let piece_type = board
+                                .occupant_of_square(i, j)
+                                .unwrap()
+                                .unwrap()
+                                .piece_type();
+                            match piece_type {
+                                PieceType::P => pieces.pawns[index] = piece_value,
+                                PieceType::B => pieces.bishops[index] = piece_value,
+                                PieceType::N => pieces.knights[index] = piece_value,
+                                PieceType::R => pieces.rooks[index] = piece_value,
+                                PieceType::K => pieces.kings[index] = piece_value,
+                                PieceType::Q => pieces.queens[index] = piece_value,
+                            }
+                        }
+                        index += 1;
+                    }
+                }
+                println!("{}", pieces.print_boards());
+            }
+
+            board.make_move_san(&arithmetic_move).expect("ERRORRRR");
+        }
+    }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -130,11 +182,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Please include a path to the pgn you want to use");
         return Ok(());
     }
-    let mut games: Vec<game> = vec![];
     let mut last_line_type = "moves";
     let file = File::open(&args[1]).expect("Error opening file");
+
     let reader = BufReader::new(file);
     let mut current_game = game::new();
+    let mut num_games = 0;
 
     for line_obj in reader.lines() {
         let line = line_obj?;
@@ -160,10 +213,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if current_line_type == "moves" && last_line_type == "tags" {
             if current_game.is_desired() {
                 current_game = current_game.parse_moves();
-                games.push(current_game);
+                current_game.process_moves();
+                num_games += 1;
 
                 // Debug code
-                if games.len() > 1 {
+                if num_games >= MAX_GAMES {
                     break;
                 }
             }
@@ -173,56 +227,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         last_line_type = current_line_type;
     }
 
-    let mut board = Board::default();
-    for arithmetic_move in games[0].moves.clone() {
-        let side_to_move = board.side_to_move();
-        let move_being_made = board.san_to_move(&arithmetic_move).expect("ERRORRRRRRRRR");
-        println!("Side to move: {}", side_to_move);
-        println!("Move being made: {:?}", move_being_made.from_square());
-        if (side_to_move == Color::White) {
-            let mut pieces = BitBoards::new();
-            {
-                let i = move_being_made.from_square().0 as usize - 97;
-                let j = move_being_made.from_square().1 as usize - 49;
-                pieces.piece_selected[i + ((7 - j) * 8)] = 1;
-            }
-            let mut index = 0;
-            for j in ('1'..='8').rev() {
-                for i in 'a'..='h' {
-                    if !board.occupant_of_square(i, j).unwrap().is_none() {
-                        let piece_value =
-                            if board.occupant_of_square(i, j).unwrap().unwrap().color()
-                                == Color::White
-                            {
-                                1
-                            } else {
-                                -1
-                            };
-                        let piece_type = board
-                            .occupant_of_square(i, j)
-                            .unwrap()
-                            .unwrap()
-                            .piece_type();
-                        match piece_type {
-                            PieceType::P => pieces.pawns[index] = piece_value,
-                            PieceType::B => pieces.bishops[index] = piece_value,
-                            PieceType::N => pieces.knights[index] = piece_value,
-                            PieceType::R => pieces.rooks[index] = piece_value,
-                            PieceType::K => pieces.kings[index] = piece_value,
-                            PieceType::Q => pieces.queens[index] = piece_value,
-                        }
-                    }
-                    index += 1;
-                }
-            }
-            println!("{}", pieces.print_boards());
-        }
-
-        board.make_move_san(&arithmetic_move).expect("ERRORRRR");
-    }
-
-    println!("Games: {}", games.len());
-    println!("{}", games[0].pgn);
-    println!("{:?}", games[0].moves);
+    println!("Games: {}", num_games);
     Ok(())
 }
