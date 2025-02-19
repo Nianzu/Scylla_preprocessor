@@ -1,3 +1,4 @@
+use core::fmt;
 use rschess::{Board, Color, Piece, PieceType};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -5,11 +6,62 @@ use std::{env, string};
 
 static MIN_ELO: u16 = 2000;
 
+struct BitBoards {
+    pawns: Vec<i8>,
+    bishops: Vec<i8>,
+    knights: Vec<i8>,
+    rooks: Vec<i8>,
+    kings: Vec<i8>,
+    queens: Vec<i8>,
+}
+
+impl BitBoards {
+    fn new() -> BitBoards {
+        BitBoards {
+            pawns: vec![0; 64],
+            bishops: vec![0; 64],
+            knights: vec![0; 64],
+            rooks: vec![0; 64],
+            kings: vec![0; 64],
+            queens: vec![0; 64],
+        }
+    }
+
+    fn print_board(board: Vec<i8>) -> String {
+        let mut output = "".to_owned();
+        for i in 0..64 {
+            output += &format!("{:2}", board[i]);
+            output += " ";
+            if (i + 1) % 8 == 0 {
+                output += "\n"
+            }
+        }
+        output
+    }
+    fn print_boards (&self) -> String {
+        let mut output = "".to_owned();
+        output += "Pawns\n";
+        output += &BitBoards::print_board(self.pawns.clone());
+        output += "Bishops\n";
+        output += &BitBoards::print_board(self.bishops.clone());
+        output += "Knights\n";
+        output += &BitBoards::print_board(self.knights.clone());
+        output += "Rooks\n";
+        output += &BitBoards::print_board(self.rooks.clone());
+        output += "Kings\n";
+        output += &BitBoards::print_board(self.kings.clone());
+        output += "Queens\n";
+        output += &BitBoards::print_board(self.queens.clone());
+        output
+    }
+}
+
 struct game {
     white_elo: Option<u16>,
     black_elo: Option<u16>,
     pgn: String,
     moves: Vec<String>,
+    boards: Vec<BitBoards>,
 }
 
 impl game {
@@ -19,6 +71,7 @@ impl game {
             black_elo: None,
             pgn: "".to_owned(),
             moves: vec![],
+            boards: vec![],
         }
     }
 
@@ -119,38 +172,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut board = Board::default();
-    let current_game = &games[0];
-    for arithmetic_move in &current_game.moves {
+    for arithmetic_move in games[0].moves.clone() {
+        let mut pieces = BitBoards::new();
         let move_being_made = board.san_to_move(&arithmetic_move).expect("ERRORRRRRRRRR");
         println!("Side to move: {}", board.side_to_move());
         println!("Move being made: {:?}", move_being_made.from_square());
         // println!("{}\n\n", board);
+        let mut index = 0;
         for j in ('1'..='8').rev() {
             for i in 'a'..='h' {
-                if !board.occupant_of_square(i, j).unwrap().is_none()
-                    && board
+                if !board.occupant_of_square(i, j).unwrap().is_none() {
+                    let piece_value = if board.occupant_of_square(i, j).unwrap().unwrap().color()
+                        == Color::White
+                    {
+                        1
+                    } else {
+                        -1
+                    };
+                    let piece_type = board
                         .occupant_of_square(i, j)
                         .unwrap()
                         .unwrap()
-                        .piece_type()
-                        == PieceType::P
-                {
-                    if board
-                    .occupant_of_square(i, j)
-                    .unwrap()
-                    .unwrap().color() == Color::White {
-                        print!(" 1 ");
-
+                        .piece_type();
+                    match piece_type {
+                        PieceType::P => pieces.pawns[index] = piece_value,
+                        PieceType::B => pieces.bishops[index] = piece_value,
+                        PieceType::N => pieces.knights[index] = piece_value,
+                        PieceType::R => pieces.rooks[index] = piece_value,
+                        PieceType::K => pieces.kings[index] = piece_value,
+                        PieceType::Q => pieces.queens[index] = piece_value,
+                        _ => {}
                     }
-                    else{print!("-1 ")}
-                } else {
-                    print!(" 0 ");
                 }
-                if i == 'h' {
-                    print!("\n");
-                }
+                index += 1;
             }
         }
+        games[0].boards.push(pieces);
+        println!("{}", games[0].boards.last().unwrap().print_boards());
         board.make_move_san(&arithmetic_move).expect("ERRORRRR");
     }
 
