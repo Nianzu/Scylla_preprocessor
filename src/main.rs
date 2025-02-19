@@ -13,6 +13,7 @@ struct BitBoards {
     rooks: Vec<i8>,
     kings: Vec<i8>,
     queens: Vec<i8>,
+    piece_selected: Vec<i8>,
 }
 
 impl BitBoards {
@@ -24,6 +25,7 @@ impl BitBoards {
             rooks: vec![0; 64],
             kings: vec![0; 64],
             queens: vec![0; 64],
+            piece_selected: vec![0; 64],
         }
     }
 
@@ -52,6 +54,8 @@ impl BitBoards {
         output += &BitBoards::print_board(self.kings.clone());
         output += "Queens\n";
         output += &BitBoards::print_board(self.queens.clone());
+        output += "Piece Selected\n";
+        output += &BitBoards::print_board(self.piece_selected.clone());
         output
     }
 }
@@ -61,7 +65,6 @@ struct game {
     black_elo: Option<u16>,
     pgn: String,
     moves: Vec<String>,
-    boards: Vec<BitBoards>,
 }
 
 impl game {
@@ -71,7 +74,6 @@ impl game {
             black_elo: None,
             pgn: "".to_owned(),
             moves: vec![],
-            boards: vec![],
         }
     }
 
@@ -177,7 +179,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let move_being_made = board.san_to_move(&arithmetic_move).expect("ERRORRRRRRRRR");
         println!("Side to move: {}", board.side_to_move());
         println!("Move being made: {:?}", move_being_made.from_square());
-        // println!("{}\n\n", board);
+        {
+            let i = move_being_made.from_square().0 as usize -97;
+            let j = move_being_made.from_square().1 as usize -49;
+            pieces.piece_selected[i + ( (7 -j) * 8)] = 1;
+        }
         let mut index = 0;
         for j in ('1'..='8').rev() {
             for i in 'a'..='h' {
@@ -201,20 +207,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         PieceType::R => pieces.rooks[index] = piece_value,
                         PieceType::K => pieces.kings[index] = piece_value,
                         PieceType::Q => pieces.queens[index] = piece_value,
-                        _ => {}
                     }
                 }
                 index += 1;
             }
         }
-        games[0].boards.push(pieces);
-        println!("{}", games[0].boards.last().unwrap().print_boards());
+        println!("{}", pieces.print_boards());
         board.make_move_san(&arithmetic_move).expect("ERRORRRR");
     }
 
     println!("Games: {}", games.len());
     println!("{}", games[0].pgn);
     println!("{:?}", games[0].moves);
-    // println!("{board}");
     Ok(())
 }
