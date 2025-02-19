@@ -1,4 +1,4 @@
-use core::fmt;
+use core::{fmt, num};
 use rschess::{Board, Color, Piece, PieceType};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -113,7 +113,7 @@ impl game {
     }
 
     fn parse_moves(mut self) -> Self {
-        let beginning = game::remove_brackets(self.pgn.clone());
+        let beginning = game::remove_brackets(self.pgn.clone()).replace("?", "").replace("!", "");
         let mut intermediate: Vec<&str> = beginning.split(" ").collect();
         intermediate.retain(|value| !value.contains(".") && !value.is_empty());
         let end: Vec<String> = intermediate
@@ -129,8 +129,8 @@ impl game {
         for arithmetic_move in self.moves.clone() {
             let side_to_move = board.side_to_move();
             let move_being_made = board.san_to_move(&arithmetic_move).expect("ERRORRRRRRRRR");
-            println!("Side to move: {}", side_to_move);
-            println!("Move being made: {:?}", move_being_made.from_square());
+            // println!("Side to move: {}", side_to_move);
+            // println!("Move being made: {:?}", move_being_made.from_square());
             if side_to_move == Color::White {
                 let mut pieces = BitBoards::new();
                 {
@@ -167,7 +167,7 @@ impl game {
                         index += 1;
                     }
                 }
-                println!("{}", pieces.print_boards());
+                // println!("{}", pieces.print_boards());
             }
 
             board.make_move_san(&arithmetic_move).expect("ERRORRRR");
@@ -215,6 +215,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 current_game = current_game.parse_moves();
                 current_game.process_moves();
                 num_games += 1;
+                if num_games % 100 == 0{
+                    println!("{}",num_games);
+                }
 
                 // Debug code
                 if num_games >= MAX_GAMES {
