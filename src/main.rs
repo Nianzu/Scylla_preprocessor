@@ -3,6 +3,7 @@ use std::env;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
+use std::process::exit;
 
 static MIN_ELO: u16 = 2_000;
 static MAX_GAMES: usize = 20_000;
@@ -15,6 +16,7 @@ struct BitBoards {
     kings: Vec<i8>,
     queens: Vec<i8>,
     piece_selected: Vec<i8>,
+    destination: Vec<i8>,
 }
 
 impl BitBoards {
@@ -27,6 +29,7 @@ impl BitBoards {
             kings: vec![0; 64],
             queens: vec![0; 64],
             piece_selected: vec![0; 64],
+            destination: vec![0; 64],
         }
     }
 
@@ -39,7 +42,7 @@ impl BitBoards {
         f.write_all(output.as_bytes())
             .expect("Issue writing to file");
     }
-    fn export_boards(&self, f: &mut File) {
+    fn export_boards(&self, f: &mut File, destination: bool) {
         BitBoards::export_board(self.pawns.clone(), f);
         BitBoards::export_board(self.bishops.clone(), f);
         BitBoards::export_board(self.knights.clone(), f);
@@ -47,7 +50,11 @@ impl BitBoards {
         BitBoards::export_board(self.queens.clone(), f);
         BitBoards::export_board(self.kings.clone(), f);
         f.write_all("\n".as_bytes()).expect("Issue writing to file");
-        BitBoards::export_board(self.piece_selected.clone(), f);
+        if destination {
+            BitBoards::export_board(self.destination.clone(), f);
+        } else {
+            BitBoards::export_board(self.piece_selected.clone(), f);
+        }
         f.write_all("\n".as_bytes()).expect("Issue writing to file");
     }
 
@@ -79,6 +86,8 @@ impl BitBoards {
         output += &BitBoards::print_board(self.kings.clone());
         output += "Piece Selected\n";
         output += &BitBoards::print_board(self.piece_selected.clone());
+        output += "Destination\n";
+        output += &BitBoards::print_board(self.destination.clone());
         output
     }
 }
@@ -147,7 +156,16 @@ impl Game {
         self
     }
 
-    fn process_moves(&self, f: &mut File) {
+    fn process_moves(
+        &self,
+        piece_selector_file: &mut File,
+        pawn_file: &mut File,
+        bishop_file: &mut File,
+        knight_file: &mut File,
+        rook_file: &mut File,
+        queen_file: &mut File,
+        king_file: &mut File,
+    ) {
         let mut board = Board::default();
         for arithmetic_move in self.moves.clone() {
             let side_to_move = board.side_to_move();
@@ -156,11 +174,15 @@ impl Game {
             // println!("Move being made: {:?}", move_being_made.from_square());
             if side_to_move == Color::White {
                 let mut pieces = BitBoards::new();
-                {
-                    let i = move_being_made.from_square().0 as usize - 97;
-                    let j = move_being_made.from_square().1 as usize - 49;
-                    pieces.piece_selected[i + ((7 - j) * 8)] = 1;
-                }
+
+                let src_i = move_being_made.from_square().0 as usize - 97;
+                let src_j = move_being_made.from_square().1 as usize - 49;
+                pieces.piece_selected[src_i + ((7 - src_j) * 8)] = 1;
+
+                let dest_i = move_being_made.to_square().0 as usize - 97;
+                let dest_j = move_being_made.to_square().1 as usize - 49;
+                pieces.destination[dest_i + ((7 - dest_j) * 8)] = 1;
+
                 let mut index = 0;
                 for j in ('1'..='8').rev() {
                     for i in 'a'..='h' {
@@ -191,7 +213,23 @@ impl Game {
                     }
                 }
                 // println!("{}", pieces.print_boards());
-                pieces.export_boards(f);
+                pieces.export_boards(piece_selector_file, false);
+                match board
+                    .occupant_of_square(
+                        move_being_made.from_square().0,
+                        move_being_made.from_square().1,
+                    )
+                    .unwrap()
+                    .unwrap()
+                    .piece_type()
+                {
+                    PieceType::P => pieces.export_boards(pawn_file, true),
+                    PieceType::B => pieces.export_boards(bishop_file, true),
+                    PieceType::N => pieces.export_boards(knight_file, true),
+                    PieceType::R => pieces.export_boards(rook_file, true),
+                    PieceType::K => pieces.export_boards(king_file, true),
+                    PieceType::Q => pieces.export_boards(queen_file, true),
+                }
             }
 
             board.make_move_san(&arithmetic_move).expect("ERRORRRR");
@@ -207,11 +245,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let mut f = OpenOptions::new()
+    let mut piece_selector_file = OpenOptions::new()
         .read(true)
         .write(true) // <--------- this
-        .create(true).truncate(true)
-        .open("../Scylla/datasets/chess_2000/data.csv")
+        .create(true)
+        .truncate(true)
+        .open("../Scylla/datasets/chess_2000/piece_selector.csv")
+        .expect("Unable to create file");
+    let mut pawn_file = OpenOptions::new()
+        .read(true)
+        .write(true) // <--------- this
+        .create(true)
+        .truncate(true)
+        .open("../Scylla/datasets/chess_2000/pawn.csv")
+        .expect("Unable to create file");
+    let mut bishop_file = OpenOptions::new()
+        .read(true)
+        .write(true) // <--------- this
+        .create(true)
+        .truncate(true)
+        .open("../Scylla/datasets/chess_2000/bishop.csv")
+        .expect("Unable to create file");
+    let mut knight_file = OpenOptions::new()
+        .read(true)
+        .write(true) // <--------- this
+        .create(true)
+        .truncate(true)
+        .open("../Scylla/datasets/chess_2000/knight.csv")
+        .expect("Unable to create file");
+    let mut rook_file = OpenOptions::new()
+        .read(true)
+        .write(true) // <--------- this
+        .create(true)
+        .truncate(true)
+        .open("../Scylla/datasets/chess_2000/rook.csv")
+        .expect("Unable to create file");
+    let mut queen_file = OpenOptions::new()
+        .read(true)
+        .write(true) // <--------- this
+        .create(true)
+        .truncate(true)
+        .open("../Scylla/datasets/chess_2000/queen.csv")
+        .expect("Unable to create file");
+    let mut king_file = OpenOptions::new()
+        .read(true)
+        .write(true) // <--------- this
+        .create(true)
+        .truncate(true)
+        .open("../Scylla/datasets/chess_2000/king.csv")
         .expect("Unable to create file");
 
     let mut last_line_type = "moves";
@@ -245,7 +326,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if current_line_type == "moves" && last_line_type == "tags" {
             if current_game.is_desired() {
                 current_game = current_game.parse_moves();
-                current_game.process_moves(&mut f);
+                current_game.process_moves(
+                    &mut piece_selector_file,
+                    &mut pawn_file,
+                    &mut bishop_file,
+                    &mut knight_file,
+                    &mut rook_file,
+                    &mut queen_file,
+                    &mut king_file,
+                );
                 num_games += 1;
                 if num_games % 100 == 0 {
                     println!("{}", num_games);
